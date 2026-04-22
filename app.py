@@ -1,7 +1,125 @@
 import streamlit as st
+import sqlite3
 import uuid
 
 
+# Initialisierung der Datenbank
+def init_db():
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS inventar (
+            id TEXT PRIMARY KEY,
+            geraet TEXT,
+            standort TEXT,
+            benutzer TEXT,
+            status TEXT
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# CREATE Funktion
+def add_item(item):
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO inventar (id, geraet, standort, benutzer, status)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        item["id"],
+        item["Gerät"],
+        item["Standort"],
+        item["Benutzer"],
+        item["Status"]
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+# READ Funktionen
+def get_items():
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM inventar")
+    rows = c.fetchall()
+
+    conn.close()
+
+    return [
+        {
+            "id": r[0],
+            "Gerät": r[1],
+            "Standort": r[2],
+            "Benutzer": r[3],
+            "Status": r[4]
+        }
+        for r in rows
+    ]
+
+
+def get_item_by_id(item_id):
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM inventar WHERE id = ?", (item_id,))
+    row = c.fetchone()
+
+    conn.close()
+
+    if row:
+        return {
+            "id": row[0],
+            "Gerät": row[1],
+            "Standort": row[2],
+            "Benutzer": row[3],
+            "Status": row[4]
+        }
+    return None
+
+
+# UPDATE Funktion
+def update_item(item):
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("""
+        UPDATE inventar
+        SET geraet=?, standort=?, benutzer=?, status=?
+        WHERE id=?
+    """, (
+        item["Gerät"],
+        item["Standort"],
+        item["Benutzer"],
+        item["Status"],
+        item["id"]
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+#DELETE Funktion
+def delete_item(item_id):
+    conn = sqlite3.connect("inventar.db")
+    c = conn.cursor()
+
+    c.execute("DELETE FROM inventar WHERE id=?", (item_id,))
+
+    conn.commit()
+    conn.close()
+
+
+# UI Setup
 st.set_page_config(
     page_title="IT Inventar Tool",
     page_icon="💻",
@@ -13,10 +131,6 @@ st.title("💻 IT Inventar Tool")
 # Initialisierung der Nachrichten
 if "message" not in st.session_state:
     st.session_state.message = None
-
-# Initialisierung des Speichers / Session State für Daten (init)
-if "inventar" not in st.session_state:
-    st.session_state.inventar = []
 
 # Initialisierung des Bearbeitungsmodus
 if "edit_mode" not in st.session_state:
@@ -41,14 +155,9 @@ st.header("Neues Gerät hinzufügen / bearbeiten")
 edit_item = None
 
 if st.session_state.edit_mode and st.session_state.edit_id:
-    edit_item = next(
-        (item for item in st.session_state.inventar 
-         if item["id"] == st.session_state.edit_id),
-        None
-    )
+    edit_item = get_item_by_id(st.session_state.edit_id)
 
 # Default-Werte für Create-Modus
-# with st.form(key=f"device_form_{st.session_state.edit_mode}_{st.session_state.edit_id}"):
 with st.form(key=f"device_form_{st.session_state.form_counter}"):
     default_geraet = ""
     default_standort = ""
@@ -76,10 +185,12 @@ with st.form(key=f"device_form_{st.session_state.form_counter}"):
         value=default_benutzer,
     )
 
+    status_list = ["Aktiv", "Defekt", "Reserve"]
+
     status = st.selectbox(
         "Status",
-        ["Aktiv", "Defekt", "Reserve"],
-        index=["Aktiv", "Defekt", "Reserve"].index(default_status),
+        status_list,
+        index=status_list.index(default_status) if default_status in status_list else 0
     )
 
     submitted = st.form_submit_button("Speichern")
@@ -89,12 +200,13 @@ with st.form(key=f"device_form_{st.session_state.form_counter}"):
 
             if st.session_state.edit_mode:
                 # UPDATE
-                for item in st.session_state.inventar:
-                    if item["id"] == st.session_state.edit_id:
-                        item["Gerät"] = geraet
-                        item["Standort"] = standort
-                        item["Benutzer"] = benutzer
-                        item["Status"] = status
+                update_item({
+                    "id": st.session_state.edit_id,
+                    "Gerät": geraet,
+                    "Standort": standort,
+                    "Benutzer": benutzer,
+                    "Status": status
+                })
 
                 st.session_state.message = "✏️ Gerät aktualisiert!"
 
@@ -106,7 +218,7 @@ with st.form(key=f"device_form_{st.session_state.form_counter}"):
 
             else:
                 # CREATE
-                st.session_state.inventar.append({
+                add_item({
                     "id": str(uuid.uuid4()),
                     "Gerät": geraet,
                     "Standort": standort,
@@ -133,10 +245,11 @@ st.header("Inventar")
 # Jedes Gerät einzeln in einer Liste für Delete Button
 # / Tabellen nicht editierbar in Streamlit
 # Stabile ID's mit uuid statt index keys
-if st.session_state.inventar:
+inventar = get_items()
+if inventar:
 
     # Suchfilter anwenden
-    filtered = st.session_state.inventar
+    filtered = inventar
 
     if search:
         filtered = [
@@ -147,7 +260,7 @@ if st.session_state.inventar:
             or search.lower() in item["Status"].lower()
         ]
 
-    # Anzeige
+    # Anzeige der Inventareinträge
     for item in filtered:
 
         col1, col2 = st.columns([5, 1])
@@ -169,10 +282,7 @@ if st.session_state.inventar:
 
             # Löschen Button
             if st.button("🗑️ Löschen", key=item["id"]):
-                st.session_state.inventar = [
-                    x for x in st.session_state.inventar
-                    if x["id"] != item["id"]
-                ]
+                delete_item(item["id"])
                 st.rerun()
 
 else:
