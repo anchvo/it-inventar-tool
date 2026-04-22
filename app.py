@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import uuid
 
 
@@ -11,38 +10,76 @@ st.set_page_config(
 
 st.title("💻 IT Inventar Tool")
 
+# Initialisierung der Nachrichten
+if "message" not in st.session_state:
+    st.session_state.message = None
+
 # Initialisierung des Speichers / Session State für Daten (init)
 if "inventar" not in st.session_state:
     st.session_state.inventar = []
 
-# Bearbeitung von Einträgen
+# Initialisierung des Bearbeitungsmodus
 if "edit_mode" not in st.session_state:
     st.session_state.edit_mode = False
 
 if "edit_id" not in st.session_state:
     st.session_state.edit_id = None
 
-# Gerät hinzufügen oder bearbeiten
+# Initialisierung für Leeren des Formulars
+if "form_counter" not in st.session_state:
+    st.session_state.form_counter = 0
+
+# Anzeigen von Nachrichten
+if st.session_state.message:
+    st.success(st.session_state.message)
+    st.session_state.message = None
+
+# Anzeigetext für Gerät hinzufügen oder bearbeiten
 st.header("Neues Gerät hinzufügen / bearbeiten")
 
 # Default-Werte für Edit-Modus
 edit_item = None
 
-if st.session_state.edit_mode:
+if st.session_state.edit_mode and st.session_state.edit_id:
     edit_item = next(
         (item for item in st.session_state.inventar 
          if item["id"] == st.session_state.edit_id),
         None
     )
 
-with st.form("device_form"):
-    geraet = st.text_input("Gerät", value=edit_item["Gerät"] if edit_item else "")
-    standort = st.text_input("Standort", value=edit_item["Standort"] if edit_item else "")
-    benutzer = st.text_input("Benutzer", value=edit_item["Benutzer"] if edit_item else "")
+# Default-Werte für Create-Modus
+# with st.form(key=f"device_form_{st.session_state.edit_mode}_{st.session_state.edit_id}"):
+with st.form(key=f"device_form_{st.session_state.form_counter}"):
+    default_geraet = ""
+    default_standort = ""
+    default_benutzer = ""
+    default_status = "Aktiv"
+
+    if st.session_state.edit_mode and edit_item:
+        default_geraet = edit_item["Gerät"]
+        default_standort = edit_item["Standort"]
+        default_benutzer = edit_item["Benutzer"]
+        default_status = edit_item["Status"]
+
+    geraet = st.text_input(
+        "Gerät",
+        value=default_geraet,
+    )
+
+    standort = st.text_input(
+        "Standort",
+        value=default_standort,
+    )
+
+    benutzer = st.text_input(
+        "Benutzer",
+        value=default_benutzer,
+    )
+
     status = st.selectbox(
         "Status",
         ["Aktiv", "Defekt", "Reserve"],
-        index=["Aktiv", "Defekt", "Reserve"].index(edit_item["Status"]) if edit_item else 0
+        index=["Aktiv", "Defekt", "Reserve"].index(default_status),
     )
 
     submitted = st.form_submit_button("Speichern")
@@ -59,9 +96,13 @@ with st.form("device_form"):
                         item["Benutzer"] = benutzer
                         item["Status"] = status
 
-                st.success("Gerät aktualisiert!")
+                st.session_state.message = "✏️ Gerät aktualisiert!"
+
                 st.session_state.edit_mode = False
                 st.session_state.edit_id = None
+
+                st.session_state.form_counter += 1
+                st.rerun()
 
             else:
                 # CREATE
@@ -73,7 +114,11 @@ with st.form("device_form"):
                     "Status": status
                 })
 
-                st.success("Gerät hinzugefügt!")
+                st.session_state.message = "✅ Gerät hinzugefügt!"
+
+                st.session_state.form_counter += 1
+                st.rerun()
+   
         else:
             st.error("Bitte mindestens 'Gerät' ausfüllen")
 
@@ -90,17 +135,17 @@ st.header("Inventar")
 # Stabile ID's mit uuid statt index keys
 if st.session_state.inventar:
 
-    # Filter anwenden
+    # Suchfilter anwenden
+    filtered = st.session_state.inventar
+
     if search:
         filtered = [
-            item for item in st.session_state.inventar
+            item for item in filtered
             if search.lower() in item["Gerät"].lower()
             or search.lower() in item["Standort"].lower()
             or search.lower() in item["Benutzer"].lower()
             or search.lower() in item["Status"].lower()
         ]
-    else:
-        filtered = st.session_state.inventar
 
     # Anzeige
     for item in filtered:
@@ -108,15 +153,12 @@ if st.session_state.inventar:
         col1, col2 = st.columns([5, 1])
 
         with col1:
-            st.markdown(
-                f"""
-                **🖥️ {item['Gerät']}**  
-                📍 {item['Standort']}  
-                👤 {item['Benutzer']}  
-                📊 {item['Status']}
-                """
-            )
+            c1, c2, c3, c4 = st.columns(4)
 
+            c1.write(f"🖥️ {item['Gerät']}")
+            c2.write(f"📍 {item['Standort']}")
+            c3.write(f"👤 {item['Benutzer']}")
+            c4.write(f"📊 {item['Status']}")
 
         with col2:
             # Bearbeiten Button
