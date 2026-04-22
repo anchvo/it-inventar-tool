@@ -38,23 +38,44 @@ with st.form("device_form"):
 
 st.divider()
 
+st.header("Suche")
+
+search = st.text_input("Suche nach Gerät, Standort, Benutzer oder Status")
+
 st.header("Inventar")
 
+# Jedes Gerät einzeln in einer Liste um einen Delete Button hinzufügen zu können / Tabellen nicht editierbar in Streamlit
 if st.session_state.inventar:
-    for index, item in enumerate(st.session_state.inventar):
+
+    if search:
+        filtered = []
+        for i, item in enumerate(st.session_state.inventar):
+            if (
+                search.lower() in item["Gerät"].lower()
+                or search.lower() in item["Standort"].lower()
+                or search.lower() in item["Benutzer"].lower()
+                or search.lower() in item["Status"].lower()
+            ):
+                filtered.append((i, item))
+    else:
+        filtered = list(enumerate(st.session_state.inventar))
+
+    for index, item in filtered:
 
         col1, col2 = st.columns([5, 1])
 
         with col1:
-            st.write(
-                f"**{item['Gerät']}** | "
-                f"{item['Standort']} | "
-                f"{item['Benutzer']} | "
-                f"{item['Status']}"
+            st.markdown(
+                f"""
+                **🖥️ {item['Gerät']}**  
+                📍 {item['Standort']}  
+                👤 {item['Benutzer']}  
+                📊 {item['Status']}
+                """
             )
 
         with col2:
-            if st.button("Delete", key=index):
+            if st.button("🗑️ Delete", key=f"del_{index}"):
                 st.session_state.inventar.pop(index)
                 st.rerun()
 
