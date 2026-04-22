@@ -11,30 +11,69 @@ st.set_page_config(
 
 st.title("💻 IT Inventar Tool")
 
-# Session State für Daten
+# Initialisierung des Speichers / Session State für Daten (init)
 if "inventar" not in st.session_state:
     st.session_state.inventar = []
 
-st.header("Neues Gerät hinzufügen")
+# Bearbeitung von Einträgen
+if "edit_mode" not in st.session_state:
+    st.session_state.edit_mode = False
+
+if "edit_id" not in st.session_state:
+    st.session_state.edit_id = None
+
+# Gerät hinzufügen oder bearbeiten
+st.header("Neues Gerät hinzufügen / bearbeiten")
+
+# Default-Werte für Edit-Modus
+edit_item = None
+
+if st.session_state.edit_mode:
+    edit_item = next(
+        (item for item in st.session_state.inventar 
+         if item["id"] == st.session_state.edit_id),
+        None
+    )
 
 with st.form("device_form"):
-    geraet = st.text_input("Gerät")
-    standort = st.text_input("Standort")
-    benutzer = st.text_input("Benutzer")
-    status = st.selectbox("Status", ["Aktiv", "Defekt", "Reserve"])
+    geraet = st.text_input("Gerät", value=edit_item["Gerät"] if edit_item else "")
+    standort = st.text_input("Standort", value=edit_item["Standort"] if edit_item else "")
+    benutzer = st.text_input("Benutzer", value=edit_item["Benutzer"] if edit_item else "")
+    status = st.selectbox(
+        "Status",
+        ["Aktiv", "Defekt", "Reserve"],
+        index=["Aktiv", "Defekt", "Reserve"].index(edit_item["Status"]) if edit_item else 0
+    )
 
-    submitted = st.form_submit_button("Hinzufügen")
+    submitted = st.form_submit_button("Speichern")
 
     if submitted:
         if geraet:
-            st.session_state.inventar.append({
-                "id": str(uuid.uuid4()),
-                "Gerät": geraet,
-                "Standort": standort,
-                "Benutzer": benutzer,
-                "Status": status
-            })
-            st.success("Gerät hinzugefügt!")
+
+            if st.session_state.edit_mode:
+                # UPDATE
+                for item in st.session_state.inventar:
+                    if item["id"] == st.session_state.edit_id:
+                        item["Gerät"] = geraet
+                        item["Standort"] = standort
+                        item["Benutzer"] = benutzer
+                        item["Status"] = status
+
+                st.success("Gerät aktualisiert!")
+                st.session_state.edit_mode = False
+                st.session_state.edit_id = None
+
+            else:
+                # CREATE
+                st.session_state.inventar.append({
+                    "id": str(uuid.uuid4()),
+                    "Gerät": geraet,
+                    "Standort": standort,
+                    "Benutzer": benutzer,
+                    "Status": status
+                })
+
+                st.success("Gerät hinzugefügt!")
         else:
             st.error("Bitte mindestens 'Gerät' ausfüllen")
 
@@ -46,8 +85,9 @@ search = st.text_input("Suche nach Gerät, Standort, Benutzer oder Status")
 
 st.header("Inventar")
 
-# Jedes Gerät einzeln in einer Liste um einen Delete Button hinzufügen zu können / Tabellen nicht editierbar in Streamlit
-# Stabile ID's mit uuid 
+# Jedes Gerät einzeln in einer Liste für Delete Button
+# / Tabellen nicht editierbar in Streamlit
+# Stabile ID's mit uuid statt index keys
 if st.session_state.inventar:
 
     # Filter anwenden
@@ -77,8 +117,16 @@ if st.session_state.inventar:
                 """
             )
 
+
         with col2:
-            if st.button("🗑️ Delete", key=item["id"]):
+            # Bearbeiten Button
+            if st.button("✏️ Bearbeiten", key=f"edit_{item['id']}"):
+                st.session_state.edit_mode = True
+                st.session_state.edit_id = item["id"]
+                st.rerun()
+
+            # Löschen Button
+            if st.button("🗑️ Löschen", key=item["id"]):
                 st.session_state.inventar = [
                     x for x in st.session_state.inventar
                     if x["id"] != item["id"]
