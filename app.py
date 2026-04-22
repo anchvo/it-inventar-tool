@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import uuid
 
 
 st.set_page_config(
@@ -27,6 +28,7 @@ with st.form("device_form"):
     if submitted:
         if geraet:
             st.session_state.inventar.append({
+                "id": str(uuid.uuid4()),
                 "Gerät": geraet,
                 "Standort": standort,
                 "Benutzer": benutzer,
@@ -45,22 +47,23 @@ search = st.text_input("Suche nach Gerät, Standort, Benutzer oder Status")
 st.header("Inventar")
 
 # Jedes Gerät einzeln in einer Liste um einen Delete Button hinzufügen zu können / Tabellen nicht editierbar in Streamlit
+# Stabile ID's mit uuid 
 if st.session_state.inventar:
 
+    # Filter anwenden
     if search:
-        filtered = []
-        for i, item in enumerate(st.session_state.inventar):
-            if (
-                search.lower() in item["Gerät"].lower()
-                or search.lower() in item["Standort"].lower()
-                or search.lower() in item["Benutzer"].lower()
-                or search.lower() in item["Status"].lower()
-            ):
-                filtered.append((i, item))
+        filtered = [
+            item for item in st.session_state.inventar
+            if search.lower() in item["Gerät"].lower()
+            or search.lower() in item["Standort"].lower()
+            or search.lower() in item["Benutzer"].lower()
+            or search.lower() in item["Status"].lower()
+        ]
     else:
-        filtered = list(enumerate(st.session_state.inventar))
+        filtered = st.session_state.inventar
 
-    for index, item in filtered:
+    # Anzeige
+    for item in filtered:
 
         col1, col2 = st.columns([5, 1])
 
@@ -75,8 +78,11 @@ if st.session_state.inventar:
             )
 
         with col2:
-            if st.button("🗑️ Delete", key=f"del_{index}"):
-                st.session_state.inventar.pop(index)
+            if st.button("🗑️ Delete", key=item["id"]):
+                st.session_state.inventar = [
+                    x for x in st.session_state.inventar
+                    if x["id"] != item["id"]
+                ]
                 st.rerun()
 
 else:
