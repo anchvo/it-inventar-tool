@@ -1,6 +1,25 @@
+# Virtual Environments
 .venv/
 venv/
+env/
+ENV/
+
+# Python cache
 __pycache__/
 *.pyc
-.streamlit/
+*.pyo
+
+# Environment variables
 .env
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+
+
+
+
