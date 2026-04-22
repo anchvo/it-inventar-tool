@@ -4,7 +4,7 @@ Ein einfaches, aber vollständiges IT-Inventar-System zur Verwaltung von Geräte
 
 Das Projekt wurde als Lern- und Portfolio-Projekt entwickelt, um grundlegende Full-Stack-Fähigkeiten mit Python zu demonstrieren. Veränderungen und Verbesserungen werden weiterhin stetig vorgenommen.
 
-Live Link: 
+Live Link: https://it-inventar-tool.streamlit.app/
 
 ---
 
