@@ -41,7 +41,22 @@ st.divider()
 st.header("Inventar")
 
 if st.session_state.inventar:
-    df = pd.DataFrame(st.session_state.inventar)
-    st.dataframe(df, use_container_width=True)
+    for index, item in enumerate(st.session_state.inventar):
+
+        col1, col2 = st.columns([5, 1])
+
+        with col1:
+            st.write(
+                f"**{item['Gerät']}** | "
+                f"{item['Standort']} | "
+                f"{item['Benutzer']} | "
+                f"{item['Status']}"
+            )
+
+        with col2:
+            if st.button("Delete", key=index):
+                st.session_state.inventar.pop(index)
+                st.rerun()
+
 else:
     st.info("Noch keine Geräte vorhanden")
